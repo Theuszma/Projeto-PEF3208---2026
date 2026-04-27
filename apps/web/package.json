@@ -12,11 +12,11 @@
     "lint": "tsc --noEmit",
     "clean": "rm -rf dist"
   },
-  "dependencies": {
+"dependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
     "@repo/ui": "*",
-    "@repo/utils": "*",
-    "react": "19.1.0",
-    "react-dom": "19.1.0"
+    "@repo/utils": "*"
   },
   "devDependencies": {
     "@types/react": "19.1.2",
