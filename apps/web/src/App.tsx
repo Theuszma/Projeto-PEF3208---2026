@@ -5,6 +5,13 @@ import { ResultCard, BeamVisualizer, SectionVisualizer } from '@repo/ui';
 interface PointLoad { force: number; position: number; }
 interface DistLoad { force: number; start: number; end: number; }
 
+// Catálogo de materiais vinculando Rigidez (E) e Resistência (fy)
+const MATERIALS = {
+  aco: { e: 2100000, fy: 2500, label: 'Aço (E: 2.1E6, fy: 2500)' },
+  concreto: { e: 250000, fy: 250, label: 'Concreto (E: 2.5E5, fy: 250)' },
+  madeira: { e: 100000, fy: 150, label: 'Madeira (E: 1.0E5, fy: 150)' }
+};
+
 function App() {
   const [isMenuOpen, setIsMenuOpen] = useState<boolean>(true);
   const [length, setLength] = useState<number>(10);
@@ -18,12 +25,20 @@ function App() {
   const [secType, setSecType] = useState<ProfileType>('retangular');
   const [secB, setSecB] = useState<number>(15); const [secH, setSecH] = useState<number>(40);
   const [secTw, setSecTw] = useState<number>(2); const [secTf, setSecTf] = useState<number>(3);
-  const [materialE, setMaterialE] = useState<number>(2100000); 
+  
+  // Controle Unificado de Material
+  const [materialKey, setMaterialKey] = useState<keyof typeof MATERIALS>('aco');
+  const materialE = MATERIALS[materialKey].e;
+  const [yieldStrength, setYieldStrength] = useState<number>(MATERIALS['aco'].fy); 
 
   const [enableSafety, setEnableSafety] = useState<boolean>(false);
-  const [yieldStrength, setYieldStrength] = useState<number>(2500); 
-
   const [showLegends, setShowLegends] = useState<boolean>(true);
+
+  // Função que altera a rigidez e a resistência simultaneamente
+  const handleMaterialChange = (key: keyof typeof MATERIALS) => {
+    setMaterialKey(key);
+    setYieldStrength(MATERIALS[key].fy);
+  };
 
   const updateArr = (arr: any[], setArr: any, idx: number, field: string, val: number) => { const n = [...arr]; n[idx][field] = val; setArr(n); };
   const removeArr = (arr: any[], setArr: any, idx: number) => setArr(arr.filter((_, i) => i !== idx));
@@ -35,7 +50,7 @@ function App() {
   const stressResult = calculateFlexuralStresses(beamResult.maxMoment, sectionResult, secH);
   const shearResult = calculateShearStresses(beamResult.maxShear, sectionConfig, sectionResult);
 
-  // Valor absoluto da Tensão Máxima já calculado corretamente!
+  // Cálculo seguro do Fator de Segurança
   const maxSigmaAbs = Math.max(Math.abs(stressResult.sigmaTop), Math.abs(stressResult.sigmaBottom));
   const safetyFactor = maxSigmaAbs > 0 ? yieldStrength / maxSigmaAbs : 999;
   const isSafe = safetyFactor >= 1.5;
@@ -78,8 +93,10 @@ function App() {
             <div style={{ minWidth: '220px' }}>
               <h3 style={{ margin: '0 0 12px 0', fontSize: '1rem', color: '#1e293b', borderBottom: '2px solid #e2e8f0' }}>Viga & Material</h3>
               <label style={{ fontSize: '0.85rem' }}>Comprimento (L): <input className="input-sm" type="number" value={length} onChange={e => setLength(Number(e.target.value))} /></label>
-              <select className="input-sm" style={{ marginTop: '8px' }} value={materialE} onChange={e => setMaterialE(Number(e.target.value))}>
-                <option value={2100000}>Aço (2.1E6)</option><option value={250000}>Concreto (2.5E5)</option><option value={100000}>Madeira (1.0E5)</option>
+              <select className="input-sm" style={{ marginTop: '8px' }} value={materialKey} onChange={e => handleMaterialChange(e.target.value as keyof typeof MATERIALS)}>
+                {Object.entries(MATERIALS).map(([key, mat]) => (
+                  <option key={key} value={key}>{mat.label}</option>
+                ))}
               </select>
               
               <div style={{ marginTop: '16px', padding: '12px', backgroundColor: '#ecfdf5', borderRadius: '6px', border: '1px solid #a7f3d0' }}>
@@ -184,7 +201,6 @@ function App() {
           )}
         </div>
 
-        {/* PAINEL DE LEGENDAS */}
         {showLegends && (
           <div style={{ marginTop: '32px', backgroundColor: 'white', border: '1px solid #cbd5e1', borderRadius: '12px', padding: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
             <h3 style={{ margin: '0 0 16px 0', color: '#334155', fontSize: '1.2rem', borderBottom: '2px solid #e2e8f0', paddingBottom: '8px' }}>
@@ -202,7 +218,7 @@ function App() {
               <div><strong style={{color:'#dc2626'}}>σ (Sigma):</strong> Tensão Normal (kgf/cm²). O esforço de estiramento (+) ou esmagamento (-) das fibras.</div>
               <div><strong style={{color:'#ca8a04'}}>τ (Tau):</strong> Tensão de Cisalhamento (kgf/cm²). O esforço de "corte/escorregamento" interno.</div>
               <div><strong style={{color:'#15803d'}}>EI:</strong> Rigidez à Flexão. A resistência do material (E) vezes a geometria da peça (I).</div>
-              {enableSafety && <div><strong style={{color:'#991b1b'}}>FS:</strong> Fator de Segurança. Limite de Escoamento (f_y) dividido pela Tensão Normal Máxima (σ_max).</div>}
+              {enableSafety && <div><strong style={{color:'#991b1b'}}>FS:</strong> Fator de Segurança. Limite de Escoamento (fy) dividido pela Tensão Normal Máxima.</div>}
             </div>
           </div>
         )}
